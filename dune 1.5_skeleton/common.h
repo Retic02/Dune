@@ -8,45 +8,47 @@
 #include <assert.h>
 
 /* ================= system parameters =================== */
-#define TICK 10		// time unit(ms)
+#define TICK 10      // time unit(ms)
 
 #define N_LAYER 2
-#define MAP_WIDTH	60
-#define MAP_HEIGHT	18
+#define MAP_WIDTH   60
+#define MAP_HEIGHT   18
 
 
-/* ================= À§Ä¡¿Í ¹æÇâ =================== */
-// ¸Ê¿¡¼­ À§Ä¡¸¦ ³ªÅ¸³»´Â ±¸Á¶Ã¼
+/* ================= ìœ„ì¹˜ì™€ ë°©í–¥ =================== */
+// ë§µì—ì„œ ìœ„ì¹˜ë¥¼ ë‚˜íƒ€ë‚´ëŠ” êµ¬ì¡°ì²´
 typedef struct {
 	int row, column;
 } POSITION;
 
-// Ä¿¼­ À§Ä¡
+// ì»¤ì„œ ìœ„ì¹˜
 typedef struct {
-	POSITION previous;  // Á÷Àü À§Ä¡
-	POSITION current;   // ÇöÀç À§Ä¡
+	POSITION previous;  // ì§ì „ ìœ„ì¹˜
+	POSITION current;   // í˜„ì¬ ìœ„ì¹˜
 } CURSOR;
 
-// ÀÔ·Â °¡´ÉÇÑ Å° Á¾·ù.
-// ¼ö¾÷¿¡¼­ enumÀº »ı·«Çß´Âµ¥, Å©°Ô ¾î·ÆÁö ¾ÊÀ¸´Ï ¿¹Á¦ °Ë»ö
+// ì…ë ¥ ê°€ëŠ¥í•œ í‚¤ ì¢…ë¥˜.
+// ìˆ˜ì—…ì—ì„œ enumì€ ìƒëµí–ˆëŠ”ë°, í¬ê²Œ ì–´ë µì§€ ì•Šìœ¼ë‹ˆ ì˜ˆì œ ê²€ìƒ‰
 typedef enum {
-	// k_none: ÀÔ·ÂµÈ Å°°¡ ¾øÀ½. d_stay(¾È ¿òÁ÷ÀÌ´Â °æ¿ì)¿¡ ´ëÀÀ
+	// k_none: ì…ë ¥ëœ í‚¤ê°€ ì—†ìŒ. d_stay(ì•ˆ ì›€ì§ì´ëŠ” ê²½ìš°)ì— ëŒ€ì‘
 	k_none = 0, k_up, k_right, k_left, k_down,
 	k_quit,
-	k_undef, // Á¤ÀÇµÇÁö ¾ÊÀº Å° ÀÔ·Â	
+	k_space,  // ìŠ¤í˜ì´ìŠ¤ë°” ì¶”ê°€
+	k_undef,
 } KEY;
 
 
-// DIRECTIONÀº KEYÀÇ ºÎºĞÁıÇÕÀÌÁö¸¸, ÀÇ¹Ì¸¦ ¸íÈ®ÇÏ°Ô ÇÏ±â À§ÇØ¼­ ´Ù¸¥ Å¸ÀÔÀ¸·Î Á¤ÀÇ
+
+// DIRECTIONì€ KEYì˜ ë¶€ë¶„ì§‘í•©ì´ì§€ë§Œ, ì˜ë¯¸ë¥¼ ëª…í™•í•˜ê²Œ í•˜ê¸° ìœ„í•´ì„œ ë‹¤ë¥¸ íƒ€ì…ìœ¼ë¡œ ì •ì˜
 typedef enum {
 	d_stay = 0, d_up, d_right, d_left, d_down
 } DIRECTION;
 
 
-/* ================= À§Ä¡¿Í ¹æÇâ(2) =================== */
-// ÆíÀÇ¼ºÀ» À§ÇÑ ÇÔ¼öµé. KEY, POSITION, DIRECTION ±¸Á¶Ã¼µéÀ» À¯±âÀûÀ¸·Î º¯È¯
+/* ================= ìœ„ì¹˜ì™€ ë°©í–¥(2) =================== */
+// í¸ì˜ì„±ì„ ìœ„í•œ í•¨ìˆ˜ë“¤. KEY, POSITION, DIRECTION êµ¬ì¡°ì²´ë“¤ì„ ìœ ê¸°ì ìœ¼ë¡œ ë³€í™˜
 
-// ÆíÀÇ¼º ÇÔ¼ö
+// í¸ì˜ì„± í•¨ìˆ˜
 inline POSITION padd(POSITION p1, POSITION p2) {
 	POSITION p = { p1.row + p2.row, p1.column + p2.column };
 	return p;
@@ -58,37 +60,40 @@ inline POSITION psub(POSITION p1, POSITION p2) {
 	return p;
 }
 
-// ¹æÇâÅ°ÀÎÁö È®ÀÎÇÏ´Â ÇÔ¼ö
-#define is_arrow_key(k)		(k_up <= (k) && (k) <= k_down)
+// ë°©í–¥í‚¤ì¸ì§€ í™•ì¸í•˜ëŠ” í•¨ìˆ˜
+#define is_arrow_key(k)      (k_up <= (k) && (k) <= k_down)
 
-// È­»ìÇ¥ 'Å°'(KEY)¸¦ '¹æÇâ'(DIRECTION)À¸·Î º¯È¯. Á¤¼ö °ªÀº ¶È°°À¸´Ï Å¸ÀÔ¸¸ ¹Ù²ãÁÖ¸é µÊ
-#define ktod(k)		(DIRECTION)(k)
+// í™”ì‚´í‘œ 'í‚¤'(KEY)ë¥¼ 'ë°©í–¥'(DIRECTION)ìœ¼ë¡œ ë³€í™˜. ì •ìˆ˜ ê°’ì€ ë˜‘ê°™ìœ¼ë‹ˆ íƒ€ì…ë§Œ ë°”ê¿”ì£¼ë©´ ë¨
+#define ktod(k)      (DIRECTION)(k)
 
-// DIRECTIONÀ» POSITION º¤ÅÍ·Î º¯È¯ÇÏ´Â ÇÔ¼ö
+// DIRECTIONì„ POSITION ë²¡í„°ë¡œ ë³€í™˜í•˜ëŠ” í•¨ìˆ˜
 inline POSITION dtop(DIRECTION d) {
 	static POSITION direction_vector[] = { {0, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 0} };
 	return direction_vector[d];
 }
 
-// p¸¦ d ¹æÇâÀ¸·Î ÀÌµ¿½ÃÅ² POSITION
-#define pmove(p, d)		(padd((p), dtop(d)))
+// pë¥¼ d ë°©í–¥ìœ¼ë¡œ ì´ë™ì‹œí‚¨ POSITION
+#define pmove(p, d)      (padd((p), dtop(d)))
+
 
 /* ================= game data =================== */
 typedef struct {
-	int spice;		// ÇöÀç º¸À¯ÇÑ ½ºÆÄÀÌ½º
-	int spice_max;  // ½ºÆÄÀÌ½º ÃÖ´ë ÀúÀå·®
-	int population; // ÇöÀç ÀÎ±¸ ¼ö
-	int population_max;  // ¼ö¿ë °¡´ÉÇÑ ÀÎ±¸ ¼ö
+	int spice;      // í˜„ì¬ ë³´ìœ í•œ ìŠ¤íŒŒì´ìŠ¤
+	int spice_max;  // ìŠ¤íŒŒì´ìŠ¤ ìµœëŒ€ ì €ì¥ëŸ‰
+	int population; // í˜„ì¬ ì¸êµ¬ ìˆ˜
+	int population_max;  // ìˆ˜ìš© ê°€ëŠ¥í•œ ì¸êµ¬ ìˆ˜
 } RESOURCE;
 
 
-// ´ë°­ ¸¸µé¾î ºÃÀ½. ±â´É Ãß°¡ÇÏ¸é¼­ °¢ÀÚ ¼öÁ¤ÇÒ °Í
+// ëŒ€ê°• ë§Œë“¤ì–´ ë´¤ìŒ. ê¸°ëŠ¥ ì¶”ê°€í•˜ë©´ì„œ ê°ì ìˆ˜ì •í•  ê²ƒ
 typedef struct {
-	POSITION pos;		// ÇöÀç À§Ä¡(position)
-	POSITION dest;		// ¸ñÀûÁö(destination)
-	char repr;			// È­¸é¿¡ Ç¥½ÃÇÒ ¹®ÀÚ(representation)
-	int move_period;	// '¸î ms¸¶´Ù ÇÑ Ä­ ¿òÁ÷ÀÌ´ÂÁö'¸¦ ¶æÇÔ
-	int next_move_time;	// ´ÙÀ½¿¡ ¿òÁ÷ÀÏ ½Ã°£
+	POSITION pos;         // í˜„ì¬ ìœ„ì¹˜
+	POSITION dest;        // ëª©ì ì§€
+	char repr;            // í™”ë©´ì— í‘œì‹œí•  ë¬¸ì
+	int speed;            // ì´ë™ ì†ë„ (ms ë‹¨ìœ„)
+	int next_move_time;   // ë‹¤ìŒ ì´ë™ ì‹œê°„
 } OBJECT_SAMPLE;
+
+
 
 #endif
