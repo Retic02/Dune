@@ -2,9 +2,10 @@
 * raw(?) I/O
 */
 #include "io.h"
+#include "display.h"
 
 void gotoxy(POSITION pos) {
-	COORD coord = { pos.column, pos.row }; // Çà, ¿­ ¹İ´ë·Î Àü´Ş
+	COORD coord = { pos.column, pos.row }; // í–‰, ì—´ ë°˜ëŒ€ë¡œ ì „ë‹¬
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
 }
 
@@ -13,30 +14,35 @@ void set_color(int color) {
 }
 
 void printc(POSITION pos, char ch, int color) {
-	if (color >= 0) {
-		set_color(color);
-	}
+	// ë°°ê²½ìƒ‰ ì„¤ì • ì œê±°
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 	gotoxy(pos);
-	printf("%c", ch);
+	printf("%c", ch); // ë¬¸ì ì¶œë ¥
+	// ìƒ‰ìƒ ë³µì›
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), COLOR_DEFAULT);
 }
+
 
 KEY get_key(void) {
-	if (!_kbhit()) {  // ÀÔ·ÂµÈ Å°°¡ ÀÖ´ÂÁö È®ÀÎ
-		return k_none;
-	}
+    if (!_kbhit()) {  // ì…ë ¥ëœ í‚¤ê°€ ìˆëŠ”ì§€ í™•ì¸
+        return k_none;
+    }
 
-	int byte = _getch();    // ÀÔ·ÂµÈ Å°¸¦ Àü´Ş ¹Ş±â
-	switch (byte) {
-	case 'q': return k_quit;  // 'q'¸¦ ´©¸£¸é Á¾·á
-	case 224:
-		byte = _getch();  // MSB 224°¡ ÀÔ·Â µÇ¸é 1¹ÙÀÌÆ® ´õ Àü´Ş ¹Ş±â
-		switch (byte) {
-		case 72: return k_up;
-		case 75: return k_left;
-		case 77: return k_right;
-		case 80: return k_down;
-		default: return k_undef;
-		}
-	default: return k_undef;
-	}
+    int byte = _getch();    // ì…ë ¥ëœ í‚¤ë¥¼ ì „ë‹¬ ë°›ê¸°
+    switch (byte) {
+    case 'q': return k_quit;  // 'q'ë¥¼ ëˆ„ë¥´ë©´ ì¢…ë£Œ
+    case ' ': return k_space; // ìŠ¤í˜ì´ìŠ¤ë°” ì…ë ¥ ê°ì§€
+    case 224:
+        byte = _getch();  // MSB 224ê°€ ì…ë ¥ ë˜ë©´ 1ë°”ì´íŠ¸ ë” ì „ë‹¬ ë°›ê¸°
+        switch (byte) {
+        case 72: return k_up;
+        case 75: return k_left;
+        case 77: return k_right;
+        case 80: return k_down;
+        default: return k_undef;
+        }
+    default: return k_undef;
+    }
 }
+
+
